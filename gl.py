@@ -160,7 +160,7 @@ def flip(board):
         board[x] = a
     return board
 
-# takes find 
+# takes find all 3x3 board steps
 def preTrain(a,center,border):
     for c in center:
         for b in border:
@@ -170,10 +170,6 @@ def preTrain(a,center,border):
             steppedInt = midBoardToNumber(steppedBoard)
             a[steppedInt][c] += 1
     return a
-
-a = {}
-for x in xrange(2**9):
-    a[x] = 600
 
 def findAllSimular(a):
     for i in range(512):
@@ -234,7 +230,7 @@ def listAround():
             a.append(i)
     return a
 
-
+# returns a string of how to rotate and flip to get from board a to b
 def movement(a,b):
     if a == b:
         return "" 
@@ -260,7 +256,15 @@ def movement(a,b):
         if rotatedInt == b:
             return m 
     
-    return ""
+    return "n"
+
+def doMovement(a,m):
+    for c in m:
+        if c == "r":
+            a = rotateBoard(a)
+        if c == "f":
+            a = flip(a)
+    return a
 
 
 
@@ -279,24 +283,34 @@ def movement(a,b):
 # pickle.dump( a, open( "a.dat", "wb" ) )
 # pickle.dump( c, open( "c.dat", "wb" ) )
 
-a = pickle.load( open( "a.dat", "rb" ) )
+# a = pickle.load( open( "a.dat", "rb" ) )
 # print a
 # for i in range(512):
 #     print str(i) + ": " + movement(i,a[i])
-b = listBase(a)
+# b = listBase(a)
 
 # a_board = numberToBoard(a[13])
 # print_board(a_board)
-c = pickle.load( open( "c.dat", "rb" ) )
+# c = pickle.load( open( "c.dat", "rb" ) )
 # print c[0]
 
 
-a = [[0 for y in xrange(2**9)] for x in xrange(2**9)]
+# a = [[0 for y in xrange(2**9)] for x in xrange(2**9)]
 # preTrain(a,b,c)
 # print a
 # pickle.dump( a, open( "preTrain.dat", "wb" ) )
-# a = pickle.load( open( "preTrain.dat", "rb" ) )
+a = pickle.load( open( "preTrain.dat", "rb" ) )
 # print a
+b = {}
+for i in range(len(a)):
+    perdiction = a[i] 
+    b[i] = {}
+    for j in range(len(perdiction)):
+        if perdiction[j] != 0:
+            print str(i) + " " + str(j) + " count: " + str(perdiction[j])
+            b[i][j] = perdiction[j]
+print b
+
 # numbersToBoard(c[0])
 
 # print ""
