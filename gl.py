@@ -30,6 +30,7 @@ pygame.init()
 
 block_size = 10
 
+# Draws a window
 def draw(board,size):
     #create the screen
 
@@ -46,23 +47,9 @@ def draw(board,size):
                 pygame.draw.rect(window, (0, 0, 0),
                     pygame.Rect(x*block_size, y*block_size,
                         block_size, block_size), 0)
-            # else:
-                # s += str(0)
-        # print(s)
-    # print("")
-
-    #draw it to the screen
     pygame.display.flip()
 
-    # #input handling (somewhat boilerplate code):
-    # while True: 
-    #    for event in pygame.event.get(): 
-    #       if event.type == pygame.QUIT: 
-    #           sys.exit(0) 
-    #       else: 
-    #           print event 
-
-
+# step board
 def step(board,size):
     new_board = [[False for x in xrange(size)] for x in xrange(size)]
     for x in xrange(size):
@@ -86,7 +73,7 @@ def step(board,size):
                     new_board[x][y] = True
     return new_board
 
-
+# print ascii to terminal
 def print_board(board,size):
     for x in xrange(size):
         s = ""
@@ -98,12 +85,13 @@ def print_board(board,size):
         print(s)
     print("")
 
-
+# takes a number and turns it into board
 def numberToBoard(i,size):
     b = bin(i).lstrip("0b").rjust(size*size, "0")
     board = [[ b[x*size+y]== "1" for y in xrange(size)] for x in xrange(size)]
     return board
 
+# takes a 5x5 grid number (border) and a 3x3 grid number (center) and combine into a 5x5 board
 def numbersToBoard(center,border):
     b_border = bin(border).lstrip("0b").rjust(25, "0")
     b_center = bin(center).lstrip("0b").rjust(9, "0")
@@ -115,7 +103,7 @@ def numbersToBoard(center,border):
     board = [[ b_border[x*5+y]== "1" for y in xrange(5)] for x in xrange(5)]
     return board
 
-
+# takes a board and turns into a number
 def boardToNumber(board,size):
     b = ""
     for x in xrange(size):
@@ -126,7 +114,7 @@ def boardToNumber(board,size):
                 b += "0"
     return int(b,2)
 
-
+# takes a 5x5 board and returns a number for the 3x3 grid
 def midBoardToNumber(board):
     b = ""
     for x in range(1, 3):
@@ -137,7 +125,7 @@ def midBoardToNumber(board):
                 b += "0"
     return int(b, 2)
 
-
+# tries to find all boards that will step to this board
 def bruteforce(board,size):
     for i in xrange(2**(size**2)):
         print i
@@ -154,7 +142,7 @@ def bruteforce(board,size):
         if same:
             print_board(newBoard,size)
 
-
+# takes a 3x3 grid and rotates it
 def rotateBoard(board):
     new_board = [[False for x in xrange(3)] for x in xrange(3)]
     for x in xrange(3):
@@ -162,7 +150,7 @@ def rotateBoard(board):
             new_board[y][2-x] = board[x][y]
     return new_board
     
-
+# flips board over
 def flip(board):
     for x in xrange(3):
         a = board[x]
@@ -172,7 +160,7 @@ def flip(board):
         board[x] = a
     return board
 
-
+# takes find 
 def preTrain(a,center,border):
     for c in center:
         for b in border:
@@ -182,10 +170,6 @@ def preTrain(a,center,border):
             steppedInt = midBoardToNumber(steppedBoard)
             a[steppedInt][c] += 1
     return a
-            # time.sleep(0.1)
-    # for i in xrange(2**(size**2)):
-    #     time.sleep(0.01)
-    #     print i
 
 a = {}
 for x in xrange(2**9):
