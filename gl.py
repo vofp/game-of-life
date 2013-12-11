@@ -7,74 +7,38 @@ import random
 
 pygame.init()
 
-# size = 5
-# board = [[False for x in xrange(size)] for x in xrange(size)]
-# board[0][0] = True
-# board[0][1] = True
-
-# board[1][0] = True
-# board[1][1] = True
-# board[1][2] = True
-
-# board[2][1] = True
-# board[2][2] = True
-# board[2][3] = True
-
-
-# board[0][0] = True
-# board[1][0] = True
-# board[0][1] = True
-# board[1][1] = True
-# board[2][2] = True
-# board[3][2] = True
-# board[2][3] = True
-# board[3][3] = True
-
-
-block_size = 10
+# Load in saved data from step 1
 simular = pickle.load( open( "a.dat", "rb" ) )
 print simular
 data = pickle.load( open( "preTrain.dat", "rb" ) )
+
 predictions_data_t = {}
 for i in range(len(data)):
     prediction = data[i] 
     predictions_data_t[i] = {}
     for j in range(len(prediction)):
         if prediction[j] != 0:
-            # print str(i) + " " + str(j) + " count: " + str(prediction[j])
             predictions_data_t[i][j] = prediction[j]
-# predictions_data = predictions_data_t
 
-# print predictions_data_t
+# turn data collected into prediction probabilities
 predictions_data = {}
 for board, predictions in predictions_data_t.iteritems():
     total = sum(predictions.viewvalues())
     if total != 0:
-        # print board
-        # print predictions
-        # print total
         predictions_data[board] = {}
         for prediction, count in predictions.iteritems():
             predictions_data[board][prediction] = count *1.0/total
-        # print predictions_data[board]
-        # print ""
-# print predictions_data
 
 
 # Draws a window
 def draw(board,size):
     #create the screen
-
-    #draw a line - see http://www.pygame.org/docs/ref/draw.html for more
-    # pygame.draw.line(window, (255, 255, 255), (0, 0), (30, 50))
     window = pygame.display.set_mode((size*block_size, size*block_size))
     window.fill((255, 255, 255))
 
     for x in xrange(size):
-        # s = ""
         for y in xrange(size):
             if board[x][y]:
-                # s += str(1)
                 pygame.draw.rect(window, (0, 0, 0),
                     pygame.Rect(x*block_size, y*block_size,
                         block_size, block_size), 0)
@@ -104,7 +68,7 @@ def step(board,size):
                     new_board[x][y] = True
     return new_board
 
-# print ascii to terminal
+# print board in ascii to terminal
 def print_board(board,size):
     for x in xrange(size):
         s = ""
@@ -114,9 +78,8 @@ def print_board(board,size):
             else:
                 s += str(0)
         print(s)
-    # print("")
 
-# takes a number and turns it into board
+# takes a number and turns it into board because storing the board as a binary number is better
 def numberToBoard(i,size):
     b = bin(i).lstrip("0b").rjust(size*size, "0")
     board = [[ b[x*size+y]== "1" for y in xrange(size)] for x in xrange(size)]
@@ -202,6 +165,7 @@ def preTrain(a,center,border):
             a[steppedInt][c] += 1
     return a
 
+# find other boards that can be rotated and flip to look like this one
 def findAllSimular(a):
     for i in range(512):
         a[i] = findSimular(a,i)
@@ -275,8 +239,6 @@ def movement(a,b):
         rotatedInt = boardToNumber(rotated,3)
         if rotatedInt == b: 
             return m 
-
-
     newBoard = numberToBoard(a,3)
     m = "f"
     rotated = flip(newBoard)
@@ -290,9 +252,11 @@ def movement(a,b):
         rotatedInt = boardToNumber(rotated,3)
         if rotatedInt == b:
             return m 
-    
+
+    # means that there is no way to move from a to b
     return "e"
 
+# returns board after taking the rotation and flip moves
 def doMovement(a,m):
     board = numberToBoard(a,3)
     for c in m:
@@ -302,6 +266,7 @@ def doMovement(a,m):
             board = flip(board)
     return boardToNumber(board,3)
 
+# filled is a board with filled in with things we know or already predicted
 def fit(board, filled):
     for x in range(3):
         for y in range(3):
@@ -310,6 +275,7 @@ def fit(board, filled):
                     return False
     return True
 
+# Takes a 3x3 board and predicts what it came from
 def makePrediction(number, filled,m):
     pred_board = [[0 for x in xrange(3)] for y in xrange(3)]
     try:
@@ -328,15 +294,11 @@ def makePrediction(number, filled,m):
                             pred_board[x][y] += predictions[n]
                         else:
                             pred_board[x][y] -= predictions[n]
-        # for x in range(3):
-        #     total += sum(pred_board[x])
         for x in range(3):
             for y in range(3):
                 pred_board[x][y] /= total*1.0
         if count == 0:
             pred_board = [[0 for x in xrange(3)] for y in xrange(3)]
-        # for x in range(3):
-        #     print pred_board[x]
         return pred_board
     except Exception, e:
         return [[0 for x in xrange(3)] for y in xrange(3)]
@@ -358,41 +320,25 @@ def makeProjection(number, filled, size, num_fill):
                         p_filled[i][j] = filled[x+i][y+j]
                     else:
                         p_filled[i][j] = -1
-            # print str(x) + " " + str(y)
-            # print_board(p_board, 3)
-            # for i in range(3):
-            #     print p_filled[i]
             p_number = boardToNumber(p_board,3)
-            # print simular[p_number]
             m = movement(simular[p_number],p_number)
-            # print m
-            # print doMovement(simular[p_number],m) == p_number
             p_pred_board = makePrediction(simular[p_number], p_filled, m)
-            # for i in range(3):
-            #     print p_pred_board[i]
             
             for i in range(3):
                 for j in range(3):
                     if 0 <= x+i < size and 0 <= y+j < size :
-                        # print str(x) + " " + str(y) + " " + str(i) + " " + str(j)
                         pred_board[x+i][y+j] += p_pred_board[i][j]
-
-    #         print ""
-    # print ""
     pred = []
     for x in range(size):
         for y in range(size):
             pred_board[x][y] /= 9
             if filled[x][y] == 0:
                 pred.append(pred_board[x][y])
-        # print pred_board[x]
     if len(pred) == 0:
         return filled
     largest = sorted(pred)[-1]
     smallest = sorted(pred)[0]
     largest_dif = max(largest,smallest*-1)
-    # print largest_dif
-    # print ""
     for x in range(size):
         for y in range(size):
             if pred_board[x][y] == largest_dif:
@@ -403,6 +349,7 @@ def makeProjection(number, filled, size, num_fill):
                 filled[x][y] = -1
     return filled
 
+# turns a prediction board into a board
 def filledToBoard(filled,size):
     board = [[False for x in xrange(size)] for x in xrange(size)]
     for x in range(size):
@@ -411,7 +358,7 @@ def filledToBoard(filled,size):
                 board[x][y] = True
     return board
 
-
+# counts the number of incorrect nodes
 def error(right_board, pred_board,size):
     count = 0
     for x in range(size):
@@ -420,6 +367,7 @@ def error(right_board, pred_board,size):
                 count += 1
     return count * 1.0 / size**2
 
+# update weights after making a prediction
 def changeBoardWeights(number, pred_board, a, m):
     try:
         predictions = predictions_data[number]
@@ -430,16 +378,14 @@ def changeBoardWeights(number, pred_board, a, m):
             board = numberToBoard(doMovement(n,m),3)
             e = error(pred_board,board,3)
             e_change = e*math.exp(-a) + (1-e)*math.exp(a)
-            # e_change = e*math.exp(a)*100
             predictions_data[number][n] *= e_change
             total += predictions_data[number][n]
         for n in k:
             predictions_data[number][n] /= total
-        # print "no error"
     except Exception, e:
-        # print "Error"
         return e
 
+# update weights after making a prediction
 def changeWeights(number, pred_board, a,size):
     board = numberToBoard(number,size)
     for x in range(-2,size):
@@ -462,14 +408,12 @@ def adaboost(number, size):
     steppedBoard = step(board,size)
     steppedInt = boardToNumber(steppedBoard,size)
     filled = [[0 for x in xrange(size)] for x in xrange(size)]
-    # print filled
     for i in range(size**2):
         makeProjection(steppedInt, filled, size, 1)
-
     pred_board = filledToBoard(filled,size)
-    # print_board(pred_board,size)
-
     board = numberToBoard(number,size)
+
+    # Error
     e = error(board,pred_board,size)
 
     a = sys.maxsize
@@ -478,40 +422,11 @@ def adaboost(number, size):
     except ZeroDivisionError:
         a = sys.maxsize
 
+    # Update and normalize
     changeWeights(number, pred_board, a, size)
-
     return pred_board, e
 
-
-# board = [[False for x in xrange(5)] for x in xrange(5)]
-
-# board[3][1] = True
-# board[3][2] = True
-# board[3][3] = True
-
-# print_board(board,5)
-# print ""
-# number = boardToNumber(board,5) 
-
-# pred_board, e = adaboost(number, 5);
-# print e
-# # print ""
-
-# # print_board(board,5)
-# # print ""
-# print_board(pred_board,5)
-# # print ""
-# # print_board(step(pred_board,5),5)
-
-
-# pred_board, e = adaboost(number, 5);
-# print e
-# print_board(pred_board,5)
-
-# pred_board, e = adaboost(number, 5);
-# print e
-# print_board(pred_board,5)
-
+# create test data
 random.seed()
 number = []
 number.append(random.randint(0, 2**25))
@@ -524,6 +439,7 @@ number.append(random.randint(0, 2**25))
 number.append(random.randint(0, 2**25))
 number.append(random.randint(0, 2**25))
 
+# run for 100 ensembles
 error_data = []
 for i in range(100):
     e = 0
@@ -537,132 +453,3 @@ for i in range(100):
 
 
 
-
-# filled = [[0 for x in xrange(5)] for x in xrange(5)]
-
-# # filled[1][0] = 1
-# # filled[1][1] = 1
-# # filled[1][2] = 1
-# # filled[0][0] = -1
-
-# # print fit(board, filled)
-
-# print filled
-
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-# print makeProjection(number, filled, 5, 1)
-
-
-
-
-# findAllSimular(a)
-# print a
-# s = listSimular(a,3)
-# b = listBase(a)
-
-# for i in s:
-#     print i
-#     draw(numberToBoard(i))
-#     time.sleep(1)
-
-# c = listAround()
-
-# pickle.dump( a, open( "a.dat", "wb" ) )
-# pickle.dump( c, open( "c.dat", "wb" ) )
-
-# a = pickle.load( open( "a.dat", "rb" ) )
-# print a
-# for i in range(512):
-#     print str(i) + ": " + movement(i,a[i])
-# b = listBase(a)
-
-# a_board = numberToBoard(a[13])
-# print_board(a_board)
-# c = pickle.load( open( "c.dat", "rb" ) )
-# print c[0]
-
-
-# a = [[0 for y in xrange(2**9)] for x in xrange(2**9)]
-# preTrain(a,b,c)
-# print a
-# pickle.dump( a, open( "preTrain.dat", "wb" ) )
-# a = pickle.load( open( "preTrain.dat", "rb" ) )
-# # print a
-# b = {}
-# for i in range(len(a)):
-#     prediction = a[i] 
-#     b[i] = {}
-#     for j in range(len(prediction)):
-#         if prediction[j] != 0:
-#             print str(i) + " " + str(j) + " count: " + str(prediction[j])
-#             b[i][j] = prediction[j]
-# # print b
-
-# c = {}
-# for board, predictions in b.iteritems():
-#     total = sum(predictions.viewvalues())
-#     if total != 0:
-#         print board
-#         print predictions
-#         print total
-#         c[board] = {}
-#         for prediction, count in predictions.iteritems():
-#             c[board][prediction] = count *1.0/total
-#         print c[board]
-#         print ""
-
-# numbersToBoard(c[0])
-
-# print ""
-# c_board = numberToBoard(c[13])
-# print_board(c_board)
-
-
-# numbersToBoard(,border)
-
-# for i in b:
-#     print i
-#     draw(numberToBoard(i,3),3)
-#     time.sleep(0.1)
-
-# for i in b:
-#     print i
-#     draw(numbersToBoard(i,c[0]),5)
-#     time.sleep(0.1)
-
-
-
-# a = [[0 for y in xrange(2**9)] for x in xrange(2**9)]
-# preTrain(a)
-# print a
-
-# with open('preTrain.obj', 'wb') as output:
-#     pickle.dump(a, output, pickle.HIGHEST_PROTOCOL)
-
-# bruteforce(board)
-# draw(board)
-
-# for x in xrange(1, 4):
-#     time.sleep(1)
-#     board = rotateBoard(board)
-#     draw(board)
-
-# time.sleep(1)
-# board = flip(board)
-# draw(board)
-
-# for x in xrange(1, 4):
-#     time.sleep(1)
-#     board = rotateBoard(board)
-#     draw(board)
