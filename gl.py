@@ -1,6 +1,9 @@
 import pygame
 import time
 import pickle
+import math
+import sys
+import random
 
 pygame.init()
 
@@ -40,21 +43,22 @@ for i in range(len(data)):
         if prediction[j] != 0:
             # print str(i) + " " + str(j) + " count: " + str(prediction[j])
             predictions_data_t[i][j] = prediction[j]
-predictions_data = predictions_data_t
+# predictions_data = predictions_data_t
 
-print predictions_data_t
-# predictions_data = {}
-# for board, predictions in predictions_data_t.iteritems():
-#     total = sum(predictions.viewvalues())
-#     if total != 0:
-#         # print board
-#         # print predictions
-#         # print total
-#         predictions_data[board] = {}
-#         for prediction, count in predictions.iteritems():
-#             predictions_data[board][prediction] = count *1.0/total
-#         # print predictions_data[board]
-#         # print ""
+# print predictions_data_t
+predictions_data = {}
+for board, predictions in predictions_data_t.iteritems():
+    total = sum(predictions.viewvalues())
+    if total != 0:
+        # print board
+        # print predictions
+        # print total
+        predictions_data[board] = {}
+        for prediction, count in predictions.iteritems():
+            predictions_data[board][prediction] = count *1.0/total
+        # print predictions_data[board]
+        # print ""
+# print predictions_data
 
 
 # Draws a window
@@ -322,22 +326,25 @@ def makePrediction(number, filled,m):
                     for y in range(3):
                         if board[x][y]:
                             pred_board[x][y] += predictions[n]
-
+                        else:
+                            pred_board[x][y] -= predictions[n]
         # for x in range(3):
         #     total += sum(pred_board[x])
         for x in range(3):
             for y in range(3):
                 pred_board[x][y] /= total*1.0
-        for x in range(3):
-            print pred_board[x]
+        if count == 0:
+            pred_board = [[0 for x in xrange(3)] for y in xrange(3)]
+        # for x in range(3):
+        #     print pred_board[x]
         return pred_board
     except Exception, e:
-        return [[0.4 for x in xrange(3)] for y in xrange(3)]
+        return [[0 for x in xrange(3)] for y in xrange(3)]
     
 
 # number is the board we are prediction
 # filled is the spots we know.
-def makeProjection(number, filled, size):
+def makeProjection(number, filled, size, num_fill):
     board = numberToBoard(number,size)
     pred_board = [[0 for x in xrange(size)] for y in xrange(size)]
     for x in range(-2,size):
@@ -351,48 +358,213 @@ def makeProjection(number, filled, size):
                         p_filled[i][j] = filled[x+i][y+j]
                     else:
                         p_filled[i][j] = -1
-            print_board(p_board, 3)
-            for i in range(3):
-                print p_filled[i]
+            # print str(x) + " " + str(y)
+            # print_board(p_board, 3)
+            # for i in range(3):
+            #     print p_filled[i]
             p_number = boardToNumber(p_board,3)
+            # print simular[p_number]
             m = movement(simular[p_number],p_number)
-            print m
-            print doMovement(simular[p_number],m) == p_number
+            # print m
+            # print doMovement(simular[p_number],m) == p_number
             p_pred_board = makePrediction(simular[p_number], p_filled, m)
+            # for i in range(3):
+            #     print p_pred_board[i]
+            
             for i in range(3):
                 for j in range(3):
-                    if 0 <= x+i < 3 and 0 <= y+j < 3 :
+                    if 0 <= x+i < size and 0 <= y+j < size :
+                        # print str(x) + " " + str(y) + " " + str(i) + " " + str(j)
                         pred_board[x+i][y+j] += p_pred_board[i][j]
-            print ""
-    print ""
-    for x in range(3):
-        print pred_board[x]
-    print ""
+
+    #         print ""
+    # print ""
+    pred = []
+    for x in range(size):
+        for y in range(size):
+            pred_board[x][y] /= 9
+            if filled[x][y] == 0:
+                pred.append(pred_board[x][y])
+        # print pred_board[x]
+    if len(pred) == 0:
+        return filled
+    largest = sorted(pred)[-1]
+    smallest = sorted(pred)[0]
+    largest_dif = max(largest,smallest*-1)
+    # print largest_dif
+    # print ""
+    for x in range(size):
+        for y in range(size):
+            if pred_board[x][y] == largest_dif:
+                filled[x][y] = 1
+            elif pred_board[x][y] == largest_dif*-1:
+                filled[x][y] = -1
+            elif pred_board[x][y] == 0:
+                filled[x][y] = -1
+    return filled
+
+def filledToBoard(filled,size):
+    board = [[False for x in xrange(size)] for x in xrange(size)]
+    for x in range(size):
+        for y in range(size):
+            if filled[x][y] == 1:
+                board[x][y] = True
+    return board
 
 
-board = [[False for x in xrange(5)] for x in xrange(5)]
+def error(right_board, pred_board,size):
+    count = 0
+    for x in range(size):
+        for y in range(size):
+            if right_board[x][y] != pred_board[x][y]:
+                count += 1
+    return count * 1.0 / size**2
 
-board[1][0] = True
-board[1][1] = True
-board[1][2] = True
+def changeBoardWeights(number, pred_board, a, m):
+    try:
+        predictions = predictions_data[number]
+        k = predictions.keys()
+        count = 0
+        total = 0
+        for n in k:
+            board = numberToBoard(doMovement(n,m),3)
+            e = error(pred_board,board,3)
+            e_change = e*math.exp(-a) + (1-e)*math.exp(a)
+            # e_change = e*math.exp(a)*100
+            predictions_data[number][n] *= e_change
+            total += predictions_data[number][n]
+        for n in k:
+            predictions_data[number][n] /= total
+        # print "no error"
+    except Exception, e:
+        # print "Error"
+        return e
 
-print_board(board,5)
-print ""
-number = boardToNumber(board,5) 
+def changeWeights(number, pred_board, a,size):
+    board = numberToBoard(number,size)
+    for x in range(-2,size):
+        for y in range(-2,size):
+            p_board = [[False for k in xrange(3)] for l in xrange(3)]
+            p_filled = [[False for k in xrange(3)] for l in xrange(3)]
+            for i in range(3):
+                for j in range(3):
+                    if 0 <= x+i < size and 0 <= y+j < size :
+                        p_board[i][j] = board[x+i][y+j]
+                        p_filled[i][j] = pred_board[x+i][y+j]
+            p_number = boardToNumber(p_board,3)
+            m = movement(simular[p_number],p_number)
+            changeBoardWeights(simular[p_number], p_filled, a, m)
 
 
-filled = [[0 for x in xrange(5)] for x in xrange(5)]
+def adaboost(number, size):
+    # learn
+    board = numberToBoard(number,size)
+    steppedBoard = step(board,size)
+    steppedInt = boardToNumber(steppedBoard,size)
+    filled = [[0 for x in xrange(size)] for x in xrange(size)]
+    # print filled
+    for i in range(size**2):
+        makeProjection(steppedInt, filled, size, 1)
 
-# filled[1][0] = 1
-filled[1][1] = 0
-# filled[1][2] = 1
-# filled[0][0] = -1
+    pred_board = filledToBoard(filled,size)
+    # print_board(pred_board,size)
 
-# print fit(board, filled)
+    board = numberToBoard(number,size)
+    e = error(board,pred_board,size)
 
-print filled
+    a = sys.maxsize
+    try:
+        a = 0.5 * math.log((1 - e) / e)
+    except ZeroDivisionError:
+        a = sys.maxsize
 
-makeProjection(number, filled, 5)
+    changeWeights(number, pred_board, a, size)
+
+    return pred_board, e
+
+
+# board = [[False for x in xrange(5)] for x in xrange(5)]
+
+# board[3][1] = True
+# board[3][2] = True
+# board[3][3] = True
+
+# print_board(board,5)
+# print ""
+# number = boardToNumber(board,5) 
+
+# pred_board, e = adaboost(number, 5);
+# print e
+# # print ""
+
+# # print_board(board,5)
+# # print ""
+# print_board(pred_board,5)
+# # print ""
+# # print_board(step(pred_board,5),5)
+
+
+# pred_board, e = adaboost(number, 5);
+# print e
+# print_board(pred_board,5)
+
+# pred_board, e = adaboost(number, 5);
+# print e
+# print_board(pred_board,5)
+
+random.seed()
+number = []
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+number.append(random.randint(0, 2**25))
+
+error_data = []
+for i in range(100):
+    e = 0
+    for n in number:
+        pred_board, er = adaboost(n, 5);
+        e += er
+    e /=len(number)
+    error_data.append(e)
+    print e
+
+
+
+
+
+# filled = [[0 for x in xrange(5)] for x in xrange(5)]
+
+# # filled[1][0] = 1
+# # filled[1][1] = 1
+# # filled[1][2] = 1
+# # filled[0][0] = -1
+
+# # print fit(board, filled)
+
+# print filled
+
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+# print makeProjection(number, filled, 5, 1)
+
+
+
 
 # findAllSimular(a)
 # print a
