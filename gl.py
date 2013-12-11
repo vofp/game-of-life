@@ -29,6 +29,33 @@ pygame.init()
 
 
 block_size = 10
+simular = pickle.load( open( "a.dat", "rb" ) )
+print simular
+data = pickle.load( open( "preTrain.dat", "rb" ) )
+predictions_data_t = {}
+for i in range(len(data)):
+    prediction = data[i] 
+    predictions_data_t[i] = {}
+    for j in range(len(prediction)):
+        if prediction[j] != 0:
+            # print str(i) + " " + str(j) + " count: " + str(prediction[j])
+            predictions_data_t[i][j] = prediction[j]
+predictions_data = predictions_data_t
+
+print predictions_data_t
+# predictions_data = {}
+# for board, predictions in predictions_data_t.iteritems():
+#     total = sum(predictions.viewvalues())
+#     if total != 0:
+#         # print board
+#         # print predictions
+#         # print total
+#         predictions_data[board] = {}
+#         for prediction, count in predictions.iteritems():
+#             predictions_data[board][prediction] = count *1.0/total
+#         # print predictions_data[board]
+#         # print ""
+
 
 # Draws a window
 def draw(board,size):
@@ -83,7 +110,7 @@ def print_board(board,size):
             else:
                 s += str(0)
         print(s)
-    print("")
+    # print("")
 
 # takes a number and turns it into board
 def numberToBoard(i,size):
@@ -233,7 +260,7 @@ def listAround():
 # returns a string of how to rotate and flip to get from board a to b
 def movement(a,b):
     if a == b:
-        return "" 
+        return "n" 
     newBoard = numberToBoard(a,3)
     
     m = ""
@@ -249,24 +276,123 @@ def movement(a,b):
     newBoard = numberToBoard(a,3)
     m = "f"
     rotated = flip(newBoard)
-    for i in xrange(4):
+    rotatedInt = boardToNumber(rotated,3)
+    if rotatedInt == b:
+        return m 
+
+    for i in xrange(3):
         m += "r"
         rotated = rotateBoard(rotated)
         rotatedInt = boardToNumber(rotated,3)
         if rotatedInt == b:
             return m 
     
-    return "n"
+    return "e"
 
 def doMovement(a,m):
+    board = numberToBoard(a,3)
     for c in m:
         if c == "r":
-            a = rotateBoard(a)
+            board = rotateBoard(board)
         if c == "f":
-            a = flip(a)
-    return a
+            board = flip(board)
+    return boardToNumber(board,3)
+
+def fit(board, filled):
+    for x in range(3):
+        for y in range(3):
+            if filled[x][y] != 0:
+                if board[x][y] != (filled[x][y] == 1):
+                    return False
+    return True
+
+def makePrediction(number, filled,m):
+    pred_board = [[0 for x in xrange(3)] for y in xrange(3)]
+    try:
+        predictions = predictions_data[number]
+        k = predictions.keys()
+        count = 0
+        total = 0
+        for n in k:
+            board = numberToBoard(doMovement(n,m),3)
+            if fit(board,filled):
+                count += 1
+                total += predictions[n]
+                for x in range(3):
+                    for y in range(3):
+                        if board[x][y]:
+                            pred_board[x][y] += predictions[n]
+
+        # for x in range(3):
+        #     total += sum(pred_board[x])
+        for x in range(3):
+            for y in range(3):
+                pred_board[x][y] /= total*1.0
+        for x in range(3):
+            print pred_board[x]
+        return pred_board
+    except Exception, e:
+        return [[0.4 for x in xrange(3)] for y in xrange(3)]
+    
+
+# number is the board we are prediction
+# filled is the spots we know.
+def makeProjection(number, filled, size):
+    board = numberToBoard(number,size)
+    pred_board = [[0 for x in xrange(size)] for y in xrange(size)]
+    for x in range(-2,size):
+        for y in range(-2,size):
+            p_board = [[False for k in xrange(3)] for l in xrange(3)]
+            p_filled = [[0 for k in xrange(3)] for l in xrange(3)]
+            for i in range(3):
+                for j in range(3):
+                    if 0 <= x+i < size and 0 <= y+j < size :
+                        p_board[i][j] = board[x+i][y+j]
+                        p_filled[i][j] = filled[x+i][y+j]
+                    else:
+                        p_filled[i][j] = -1
+            print_board(p_board, 3)
+            for i in range(3):
+                print p_filled[i]
+            p_number = boardToNumber(p_board,3)
+            m = movement(simular[p_number],p_number)
+            print m
+            print doMovement(simular[p_number],m) == p_number
+            p_pred_board = makePrediction(simular[p_number], p_filled, m)
+            for i in range(3):
+                for j in range(3):
+                    if 0 <= x+i < 3 and 0 <= y+j < 3 :
+                        pred_board[x+i][y+j] += p_pred_board[i][j]
+            print ""
+    print ""
+    for x in range(3):
+        print pred_board[x]
+    print ""
 
 
+board = [[False for x in xrange(5)] for x in xrange(5)]
+
+board[1][0] = True
+board[1][1] = True
+board[1][2] = True
+
+print_board(board,5)
+print ""
+number = boardToNumber(board,5) 
+
+
+filled = [[0 for x in xrange(5)] for x in xrange(5)]
+
+# filled[1][0] = 1
+filled[1][1] = 0
+# filled[1][2] = 1
+# filled[0][0] = -1
+
+# print fit(board, filled)
+
+print filled
+
+makeProjection(number, filled, 5)
 
 # findAllSimular(a)
 # print a
@@ -299,17 +425,30 @@ def doMovement(a,m):
 # preTrain(a,b,c)
 # print a
 # pickle.dump( a, open( "preTrain.dat", "wb" ) )
-a = pickle.load( open( "preTrain.dat", "rb" ) )
-# print a
-b = {}
-for i in range(len(a)):
-    perdiction = a[i] 
-    b[i] = {}
-    for j in range(len(perdiction)):
-        if perdiction[j] != 0:
-            print str(i) + " " + str(j) + " count: " + str(perdiction[j])
-            b[i][j] = perdiction[j]
-print b
+# a = pickle.load( open( "preTrain.dat", "rb" ) )
+# # print a
+# b = {}
+# for i in range(len(a)):
+#     prediction = a[i] 
+#     b[i] = {}
+#     for j in range(len(prediction)):
+#         if prediction[j] != 0:
+#             print str(i) + " " + str(j) + " count: " + str(prediction[j])
+#             b[i][j] = prediction[j]
+# # print b
+
+# c = {}
+# for board, predictions in b.iteritems():
+#     total = sum(predictions.viewvalues())
+#     if total != 0:
+#         print board
+#         print predictions
+#         print total
+#         c[board] = {}
+#         for prediction, count in predictions.iteritems():
+#             c[board][prediction] = count *1.0/total
+#         print c[board]
+#         print ""
 
 # numbersToBoard(c[0])
 
